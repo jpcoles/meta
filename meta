@@ -1,0 +1,91 @@
+#!/usr/bin/python
+
+import sys
+import os
+import subprocess
+
+meta_dir = '.meta'
+editor = os.environ.get('EDITOR', None)
+
+PWD = 1
+
+def usage():
+    print 'Usage: meta <command> [<args>]'
+    print 
+    print 'where <command> can be'
+    print '    ls [files]               List files and meta data about files, or all files with meta data.'
+    print '    ed <file>                Edit meta information about file.'
+    print '    mv <files> <dest>        NOT IMPLEMENTED. Move files and meta data'
+    print '    cp <files> <dest>        NOT IMPLEMENTED. Copy files and meta data'
+    print '    rm <files> <dest>        NOT IMPLEMENTED. Remove files and meta data'
+    print
+    print 'If no command is given, assume "ed".'
+    sys.exit(2)
+
+def meta_list_one(file):
+    path, f = os.path.split(file)
+    meta_path = os.path.join(path, meta_dir)
+
+    if os.path.isdir(file):
+        meta_file = os.path.join(meta_path, '.meta_directory')
+    else:
+        meta_file = os.path.join(meta_path, '.meta_%s' % f)
+
+    try:
+        with open(meta_file, 'rt') as fp:
+            first_line = fp.readline().strip()
+            print '%-20s % 58s' % ('%s:'%file, first_line[:58])
+    except IOError, e:
+        print '%s: % 58s' % (file, e)
+
+def meta_list(files):
+
+    if files:
+        for f in files:
+            meta_list_one(f)
+    else:
+        meta_path = os.path.join('.', meta_dir)
+
+        if not os.path.isdir(meta_path):
+            print >>sys.stderr, 'No meta information available.'
+        else:
+            files = filter(lambda s: not s.startswith('.'), sorted(os.listdir('.')))
+            if files:
+                meta_list(files)
+            else:
+                print >>sys.stderr, 'No meta information available.'
+
+def meta_edit(file):
+    path, f = os.path.split(file)
+    meta_path = os.path.join(path, meta_dir)
+
+    if not os.path.isdir(meta_path):
+        os.mkdir(meta_path)
+
+    if os.path.isdir(file):
+        meta_file = os.path.join(meta_path, '.meta_directory')
+    else:
+        meta_file = os.path.join(meta_path, '.meta_%s' % f)
+
+    if editor:
+        subprocess.call([editor, meta_file])
+    else:
+        print >>sys.stderr, 'No editor available. Please specify on the command line, or with the EDITOR environment variable.'
+
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        usage()
+
+    commands = ['ls', 'ed']
+
+    cmd = sys.argv[1]
+    if cmd in commands and os.path.isfile(cmd):
+        print >>sys.stderr, "Ambigious command: '%s' is also a file." % cmd
+        sys.exit(1)
+
+    if 'ls' == cmd:
+        meta_list(sys.argv[2:])
+    elif 'ed' == cmd:
+        meta_edit(sys.argv[2])
+    else:
+        meta_edit(sys.argv[1])
